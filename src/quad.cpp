@@ -10,7 +10,7 @@
 
 // Comment out if using visual studio community 2017
 // so it uses the local directory
-//#define RELEASE
+#define RELEASE
 
 Quad::Quad(glm::vec2 screenSize)
 {

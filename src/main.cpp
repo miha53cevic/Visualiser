@@ -5,8 +5,6 @@
 
 #include "quad.h"
 
-std::string PATH = "";
-
 class VisualiserGL : public App
 {
 public:
@@ -20,11 +18,28 @@ public:
         BASS_Free();
     }
 
+    void setAudioFilePath(std::string path) { m_audioFilePath = path; }
+
 private:
     virtual bool Event(SDL_Event& e) override
     {
-        // TODO - Volume change
-        BASS_SetVolume(1.0f);
+        if (GetKey(SDL_SCANCODE_UP))
+        {
+            m_volume += 0.05f;
+            if (m_volume >= 1.0f)
+                m_volume = 1.0f;
+            
+            BASS_SetVolume(m_volume);
+        }
+        else if (GetKey(SDL_SCANCODE_DOWN))
+        {
+            m_volume -= 0.05f;
+            if (m_volume <= 0.0f)
+                m_volume = 0.0f;
+
+            BASS_SetVolume(m_volume);
+        }
+
         return true;
     }
 
@@ -40,16 +55,16 @@ private:
         m_sampleRate = 44100;
 
         BASS_Init(m_deviceID, m_sampleRate, 0, 0, nullptr);
-        PlayAudio(PATH, &m_handle);
+        PlayAudio(m_audioFilePath, &m_handle);
         return true;
     }
     virtual bool Loop(float elapsed) override
     {
         // Check for song end
-        //if (BASS_ChannelIsActive(m_handle) == BASS_ACTIVE_STOPPED)
-        //    return false;
+        if (BASS_ChannelIsActive(m_handle) == BASS_ACTIVE_STOPPED)
+            return false;
 
-        CreateVisualisation(8, 1000.0f, 1000.0f, 1000.0f);
+        CreateVisualisation(8, 1000.0f, 1000.0f, 5000.0f);
         return true;
     }
 
@@ -60,6 +75,8 @@ private:
 
         if (!BASS_ChannelPlay(*streamHandle, false))
             printf("Could not load audio file... %s\n", path.c_str());
+        else
+            printf("Now playing... %s\n", path.c_str());
     }
 
     void CreateVisualisation(int rectWidth, float barAmp, float circleAmp, float aproxAmp)
@@ -125,16 +142,21 @@ private:
     int     m_deviceID;
 
     Quad    m_quad;
+
+    float   m_volume;
+
+    std::string m_audioFilePath;
 };
 
 int main(int argc, char* argv[])
 {
+    VisualiserGL app("Visualiser", 1280, 720);
+
     if (argc >= 2)
     {
-        PATH = argv[1];
+        app.setAudioFilePath(argv[1]);
     }
 
-    VisualiserGL app("Visualiser", 1280, 720);
     app.Run();
     return 0;
 }

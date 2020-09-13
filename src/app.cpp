@@ -199,6 +199,7 @@ void App::init_screen(const char * title)
     printf("Vendor:   %s\n", glGetString(GL_VENDOR));
     printf("Renderer: %s\n", glGetString(GL_RENDERER));
     printf("Version:  %s\n", glGetString(GL_VERSION));
+    printf("\n");
 
     // Enable Depth testing
     glEnable(GL_DEPTH_TEST);
