@@ -1,4 +1,4 @@
-#include "quad.h"
+ #include "quad.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <string>
 
@@ -8,10 +8,6 @@
 #include <SDL2/SDL.h>
 #endif
 
-// Comment out if using visual studio community 2017
-// so it uses the local directory
-#define RELEASE
-
 Quad::Quad(glm::vec2 screenSize)
 {
     prepQuadData();
@@ -20,14 +16,10 @@ Quad::Quad(glm::vec2 screenSize)
     m_shader.setAttribute(0, "position");
     m_shader.setAttribute(1, "textureCoords");
 
-#ifdef RELEASE
     // Get basepath for the assets folder
     char* basePath = SDL_GetBasePath();
     m_shader.createProgram(basePath + std::string("assets/shaders/quad"));
     SDL_free(basePath);
-#else
-    m_shader.createProgram("assets/shaders/quad");
-#endif
 
     m_shader.setUniformLocation("model");
     m_shader.setUniformLocation("projection");
@@ -81,17 +73,24 @@ glm::vec4 Quad::getColour()
     return m_colour;
 }
 
-void Quad::Draw()
+void Quad::Draw(bool centerRotate)
 {
     m_shader.Bind();
 
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, glm::vec3(m_position, 0.0f));
 
-    //model = glm::translate(model, glm::vec3(0.5f * m_size.x, 0.5f * m_size.y, 0.0f));
-    model = glm::rotate(model, glm::radians(m_rotation), glm::vec3(0.0f, 0.0f, 1.0f));
-    //model = glm::translate(model, glm::vec3(-0.5f * m_size.x, -0.5f * m_size.y, 0.0f));
-
+    if (centerRotate)
+    {
+        model = glm::translate(model, glm::vec3(0.5f * m_size.x, 0.5f * m_size.y, 0.0f));
+        model = glm::rotate(model, glm::radians(m_rotation), glm::vec3(0.0f, 0.0f, 1.0f));
+        model = glm::translate(model, glm::vec3(-0.5f * m_size.x, -0.5f * m_size.y, 0.0f));
+    }
+    else
+    {
+        model = glm::rotate(model, glm::radians(m_rotation), glm::vec3(0.0f, 0.0f, 1.0f));
+    }
+    
     model = glm::scale(model, glm::vec3(m_size, 1.0f));
 
     m_shader.loadMatrix(m_shader.getUniformLocation("model"), model);

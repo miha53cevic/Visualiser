@@ -1,0 +1,22 @@
+{
+    "display": {
+        "width": 1280,
+        "height": 720
+    },
+
+    "bass": {
+        "deviceID": -1,
+        "sampleRate": 44100
+    },
+
+    "visualiser": {
+        "freq_bin": [20, 60, 250, 500],
+        "rectWidth": 4,
+        "barAmp": 1000,
+        "circleAmp": 1000,
+        "aproxAmp": 5000,
+        "circleInitialRadius": 100,
+        "barColour": [255, 0, 0, 255],
+        "circleColour": [0, 0, 255, 255]
+    }
+}

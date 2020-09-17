@@ -3,6 +3,9 @@
 #include <cstdio>
 #include <glad/glad.h>
 
+#define GLT_IMPLEMENTATION
+#include "glText/gltext.h"
+
 Clock::Clock()
 {
     m_start = SDL_GetTicks();
@@ -31,6 +34,9 @@ App::App(const char * title, int width, int height)
 
 App::~App()
 {
+    gltDeleteText(m_text);
+    gltTerminate();
+
     SDL_DestroyWindow(m_window);
     SDL_GL_DeleteContext(m_maincontext);
     SDL_Quit();
@@ -41,19 +47,19 @@ void App::Run()
     // Get keystates
     m_keys = SDL_GetKeyboardState(nullptr);
 
-    bool quit = false;
+    m_bQuit = false;
 
     // Run USER setup code
     if (!Setup())
-        quit = true;
+        m_bQuit = true;
 
     SDL_Event e;
-    while (!quit)
+    while (!m_bQuit)
     {
         while (SDL_PollEvent(&e))
         {
             if (e.type == SDL_QUIT || m_keys[SDL_SCANCODE_Q])
-                quit = true;
+                m_bQuit = true;
             else if (e.type == SDL_WINDOWEVENT)
             {
                 // Resize the opengl viewport when the window size is changed
@@ -70,7 +76,7 @@ void App::Run()
 
             // Run USER event code
             if (!Event(e))
-                quit = true;
+                m_bQuit = true;
         }
 
         // Clear
@@ -79,7 +85,7 @@ void App::Run()
         // Run USER loop code
         float elapsed = m_clock.restart();
         if (!Loop(elapsed))
-            quit = true;
+            m_bQuit = true;
 
         // Display
         SDL_GL_SwapWindow(m_window);
@@ -92,6 +98,11 @@ void App::Run()
         }
         else SDL_SetWindowTitle(m_window, m_title.c_str());
     }
+}
+
+void App::Quit()
+{
+    m_bQuit = true;
 }
 
 int App::ScreenWidth()
@@ -203,6 +214,10 @@ void App::init_screen(const char * title)
 
     // Enable Depth testing
     glEnable(GL_DEPTH_TEST);
+
+    // Initialize glText and create a text object
+    gltInit();
+    m_text = gltCreateText();
 }
 
 void App::setClearColor(int r, int g, int b, int a)
@@ -212,4 +227,15 @@ void App::setClearColor(int r, int g, int b, int a)
     float _b = b / 255.0f;
     float _a = a / 255.0f;
     glClearColor(_r, _g, _b, _a);
+}
+
+void App::drawText(const char * text, float x, float y, float scale, float r, float g, float b, float a)
+{
+    gltSetText(m_text, text);
+    gltBeginDraw();
+
+    gltColor(r, g, b, a);
+    gltDrawText2D(m_text, x, y, scale);
+
+    gltEndDraw();
 }

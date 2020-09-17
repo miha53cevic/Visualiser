@@ -24,7 +24,7 @@ public:
     void      setColour(glm::vec4 colour);
     glm::vec4 getColour();
 
-    void Draw();
+    void Draw(bool centerRotate = false);
 
 private:
     glm::vec2 m_position;

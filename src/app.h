@@ -22,6 +22,8 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+struct GLTtext;
+
 class App
 {
 public:
@@ -29,6 +31,7 @@ public:
     ~App();
 
     void Run();
+    void Quit();
 
 protected:
     SDL_Window* m_window;
@@ -38,6 +41,7 @@ protected:
     std::string m_title;
     bool m_bFPSCounter;
     bool m_bFocus;
+    bool m_bQuit;
 
     const Uint8 *m_keys;
 
@@ -51,6 +55,9 @@ protected:
     virtual bool Loop(float elapsedTime) = 0;
 
     void setClearColor(int r, int g, int b, int a);
+
+    void drawText(const char* text, float x, float y, float scale, float r, float g, float b, float a);
+    GLTtext* m_text;
 
     int ScreenWidth();
     int ScreenHeight();

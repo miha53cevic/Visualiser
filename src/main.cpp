@@ -2,23 +2,44 @@
 
 #include <bass.h>
 #include <vector>
+#include <fstream>
 
 #include "quad.h"
+#include "json.hpp"
+
+#include "glText/gltext.h"
 
 class VisualiserGL : public App
 {
 public:
-    VisualiserGL(const char* title, int width, int height)
+    VisualiserGL(const char* title, int width, int height, nlohmann::json config)
         : App(title, width, height)
         , m_quad({width, height})
-    {}
+        , m_config(config)
+    {
+        m_volume = 1.0f;
+    }
     ~VisualiserGL()
     {
         // Cleanup BASS
         BASS_Free();
     }
 
-    void setAudioFilePath(std::string path) { m_audioFilePath = path; }
+    void setAudioFilePath(std::string path)
+    {
+        m_audioFilePath = path;
+
+        // Get the audio file title withouth the path
+        m_audioTitle = "";
+        for (int i = m_audioFilePath.size() - 1; i != 0; i--)
+        {
+            if (m_audioFilePath[i] == '\\' || m_audioFilePath[i] == '/')
+                break;
+            else m_audioTitle += m_audioFilePath[i];
+        }
+        // Reverse the string so it's in the correct order
+        std::reverse(m_audioTitle.begin(), m_audioTitle.end());
+    }
 
 private:
     virtual bool Event(SDL_Event& e) override
@@ -48,11 +69,11 @@ private:
         //ShowCursor(false);
         setClearColor(0, 0, 0, 255);
 
-        // Use default device
-        m_deviceID = -1;
+        // Use -1 for the default device
+        m_deviceID = m_config["bass"]["deviceID"];
 
         // Most modern music uses a sample rate of 44100
-        m_sampleRate = 44100;
+        m_sampleRate = m_config["bass"]["sampleRate"];
 
         BASS_Init(m_deviceID, m_sampleRate, 0, 0, nullptr);
         PlayAudio(m_audioFilePath, &m_handle);
@@ -64,7 +85,16 @@ private:
         if (BASS_ChannelIsActive(m_handle) == BASS_ACTIVE_STOPPED)
             return false;
 
-        CreateVisualisation(8, 1000.0f, 1000.0f, 5000.0f);
+        float barWidth  = m_config["visualiser"]["rectWidth"];
+        float barAmp    = m_config["visualiser"]["barAmp"];
+        float circleAmp = m_config["visualiser"]["circleAmp"];
+        float aproxAmp  = m_config["visualiser"]["aproxAmp"];
+        CreateVisualisation(barWidth, barAmp, circleAmp, aproxAmp);
+
+        drawText(m_audioTitle.data(), 0, 0, 1, 1, 1, 1, 1);
+        std::string volume = "Volume: " + std::to_string(m_volume);
+        drawText(volume.data(), 0, 16, 1, 1, 1, 1, 1); // scale 1 font is size 16
+
         return true;
     }
 
@@ -81,7 +111,7 @@ private:
 
     void CreateVisualisation(int rectWidth, float barAmp, float circleAmp, float aproxAmp)
     {
-        std::vector<float> freq_bin = { 20, 60, 250, 500/*, 2000, 4000, 6000, nqyuist*/ };
+        auto freq_bin = m_config["visualiser"]["freq_bin"];
         std::vector<float> peakmaxArray;
 
         const int size = 8192;
@@ -98,12 +128,17 @@ private:
             }
         }
 
+        // Spectrum colours
+        auto barColour      = m_config["visualiser"]["barColour"];
+        auto circleColour   = m_config["visualiser"]["circleColour"];
+
         // Draw bar spectrum
+        float centerOffset = (float)(ScreenWidth() / 2) - (float)(peakmaxArray.size() * rectWidth / 2);
         for (int i = 0; i < peakmaxArray.size(); i++)
         {
-            m_quad.setPosition(i * rectWidth, ScreenHeight());
+            m_quad.setPosition(centerOffset + i * rectWidth, ScreenHeight());
             m_quad.setSize(rectWidth, -peakmaxArray[i] * barAmp);
-            m_quad.setColour({ 255, 0, 0, 255 });
+            m_quad.setColour({ barColour[0], barColour[1], barColour[2], barColour[3] });
             m_quad.setRotation(0);
             m_quad.Draw();
         }
@@ -123,7 +158,8 @@ private:
 
             float cx = ScreenWidth()  / 2;
             float cy = ScreenHeight() / 2;
-            float r = 100 + aprox;
+            float initRadius = m_config["visualiser"]["circleInitialRadius"];
+            float r = initRadius + aprox;
 
             float x = cx + r * cosf(glm::radians(a));
             float y = cy + r * sinf(glm::radians(a));
@@ -131,7 +167,7 @@ private:
             m_quad.setPosition(x, y);
             m_quad.setSize(rectWidth, -peakmaxArray[i] * circleAmp);
             m_quad.setRotation(a + 90);
-            m_quad.setColour({ 0, 0, 255, 255 });
+            m_quad.setColour({ circleColour[0], circleColour[1], circleColour[2], circleColour[3] });
             m_quad.Draw();
         }
     }
@@ -145,17 +181,27 @@ private:
 
     float   m_volume;
 
-    std::string m_audioFilePath;
+    std::string     m_audioFilePath;
+    std::string     m_audioTitle;
+    nlohmann::json  m_config;
 };
 
 int main(int argc, char* argv[])
 {
-    VisualiserGL app("Visualiser", 1280, 720);
+    // Try to load config.json from executable folder location
+    char* basePath = SDL_GetBasePath();
+    std::ifstream reader(basePath + std::string("config.json"));
+    SDL_free(basePath);
+
+    nlohmann::json config;
+    if (reader.bad())
+        printf("Could not find config.json!\n");
+    else reader >> config;
+
+    VisualiserGL app("Visualiser", config["display"]["width"], config["display"]["height"], config);
 
     if (argc >= 2)
-    {
         app.setAudioFilePath(argv[1]);
-    }
 
     app.Run();
     return 0;
