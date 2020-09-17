@@ -18,6 +18,9 @@ public:
         , m_config(config)
     {
         m_volume = 1.0f;
+
+        if (m_config["display"]["fullscreen"])
+            Fullscreen(true);
     }
     ~VisualiserGL()
     {

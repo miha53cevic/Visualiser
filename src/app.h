@@ -42,6 +42,7 @@ protected:
     bool m_bFPSCounter;
     bool m_bFocus;
     bool m_bQuit;
+    bool m_bIsFullscreen;
 
     const Uint8 *m_keys;
 
@@ -70,6 +71,7 @@ protected:
     void VSync(bool vsync);
     void Culling(bool cull);
     void ShowCursor(bool cursor);
+    void Fullscreen(bool fullscreen);
 
     bool MouseHold(int key);
 };

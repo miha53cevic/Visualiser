@@ -73,6 +73,11 @@ void App::Run()
                 else if (e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) m_bFocus = true;
                 else if (e.window.event == SDL_WINDOWEVENT_FOCUS_LOST)   m_bFocus = false;
             }
+            else if (GetKey(SDL_SCANCODE_F))
+            {
+                if (m_bIsFullscreen) Fullscreen(false);
+                else                 Fullscreen(true);
+            }
 
             // Run USER event code
             if (!Event(e))
@@ -153,6 +158,12 @@ void App::Culling(bool cull)
 void App::ShowCursor(bool cursor)
 {
     SDL_ShowCursor(cursor);
+}
+
+void App::Fullscreen(bool fullscreen)
+{
+    m_bIsFullscreen = fullscreen;
+    SDL_SetWindowFullscreen(m_window, fullscreen);
 }
 
 /**
