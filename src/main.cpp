@@ -34,7 +34,7 @@ public:
 
         // Get the audio file title withouth the path
         m_audioTitle = "";
-        for (int i = m_audioFilePath.size() - 1; i != 0; i--)
+        for (int i = m_audioFilePath.size() - 1; i >= 0; i--)
         {
             if (m_audioFilePath[i] == '\\' || m_audioFilePath[i] == '/')
                 break;
