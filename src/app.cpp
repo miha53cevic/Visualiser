@@ -4,7 +4,7 @@
 #include <glad/glad.h>
 
 #define GLT_IMPLEMENTATION
-#include "glText/gltext.h"
+#include "libs/gltext.h"
 
 Clock::Clock()
 {
@@ -34,9 +34,11 @@ App::App(const char * title, int width, int height)
 
 App::~App()
 {
+    // Cleanup glText
     gltDeleteText(m_text);
     gltTerminate();
 
+    // Cleanup SDL2
     SDL_DestroyWindow(m_window);
     SDL_GL_DeleteContext(m_maincontext);
     SDL_Quit();

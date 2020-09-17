@@ -5,9 +5,7 @@
 #include <fstream>
 
 #include "quad.h"
-#include "json.hpp"
-
-#include "glText/gltext.h"
+#include "libs/json.hpp"
 
 class VisualiserGL : public App
 {
