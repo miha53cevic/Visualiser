@@ -4,8 +4,11 @@
 #include <vector>
 #include <fstream>
 
-#include "quad.h"
 #include "libs/json.hpp"
+
+#include "quad.h"
+#include "camera.h"
+#include "cube.h"
 
 class VisualiserGL : public App
 {
@@ -14,6 +17,7 @@ public:
         : App(title, width, height)
         , m_quad({width, height})
         , m_config(config)
+        , m_cube({width, height})
     {
         m_volume = 1.0f;
 
@@ -51,7 +55,7 @@ private:
             if (m_volume >= 1.0f)
                 m_volume = 1.0f;
             
-            BASS_SetVolume(m_volume);
+            BASS_ChannelSetAttribute(m_handle, BASS_ATTRIB_VOL, m_volume);
         }
         else if (GetKey(SDL_SCANCODE_DOWN))
         {
@@ -59,7 +63,7 @@ private:
             if (m_volume <= 0.0f)
                 m_volume = 0.0f;
 
-            BASS_SetVolume(m_volume);
+            BASS_ChannelSetAttribute(m_handle, BASS_ATTRIB_VOL, m_volume);
         }
 
         return true;
@@ -86,12 +90,12 @@ private:
         if (BASS_ChannelIsActive(m_handle) == BASS_ACTIVE_STOPPED)
             return false;
 
-        float barWidth  = m_config["visualiser"]["rectWidth"];
-        float barAmp    = m_config["visualiser"]["barAmp"];
-        float circleAmp = m_config["visualiser"]["circleAmp"];
-        float aproxAmp  = m_config["visualiser"]["aproxAmp"];
-        CreateVisualisation(barWidth, barAmp, circleAmp, aproxAmp);
-
+        // Visualise
+        auto peakmaxArray = calculatePeakMaxArray();
+        if (m_config["visualiser2d"]["active"]) visualiser2d(peakmaxArray);
+        if (m_config["visualiser3d"]["active"]) visualiser3d(peakmaxArray);
+        
+        // Draw info about the song and volume
         drawText(m_audioTitle.data(), 0, 0, 1, 1, 1, 1, 1);
         std::string volume = "Volume: " + std::to_string(m_volume);
         drawText(volume.data(), 0, 16, 1, 1, 1, 1, 1); // scale 1 font is size 16
@@ -110,15 +114,21 @@ private:
             printf("Now playing... %s\n", path.c_str());
     }
 
-    void CreateVisualisation(int rectWidth, float barAmp, float circleAmp, float aproxAmp)
+    std::vector<float> calculatePeakMaxArray()
     {
-        auto freq_bin = m_config["visualiser"]["freq_bin"];
+        auto freq_bin = m_config["data"]["freq_bin"];
         std::vector<float> peakmaxArray;
 
+        // Calculate 2^14 FFT
         const int size = 8192;
         float buffer[size];
         BASS_ChannelGetData(m_handle, &buffer, BASS_DATA_FFT16384);
 
+        // Get only the bins that have a frequency between the values in freq_bin
+        // using the formula: 
+        //           freq = bin_count * sampleRate / N
+        //
+        // Source: https://stackoverflow.com/questions/4364823/how-do-i-obtain-the-frequencies-of-each-value-in-an-fft/4371627#4371627
         for (int i = 0; i < size; i++)
         {
             float freq = i * m_sampleRate / (size * 2);
@@ -128,17 +138,26 @@ private:
                     peakmaxArray.push_back(buffer[i]);
             }
         }
+        return peakmaxArray;
+    }
+
+    void visualiser2d(std::vector<float> peakmaxArray)
+    {
+        float barWidth  = m_config["visualiser2d"]["rectWidth"];
+        float barAmp    = m_config["visualiser2d"]["barAmp"];
+        float circleAmp = m_config["visualiser2d"]["circleAmp"];
+        float aproxAmp  = m_config["visualiser2d"]["aproxAmp"];
 
         // Spectrum colours
-        auto barColour      = m_config["visualiser"]["barColour"];
-        auto circleColour   = m_config["visualiser"]["circleColour"];
+        auto barColour      = m_config["visualiser2d"]["barColour"];
+        auto circleColour   = m_config["visualiser2d"]["circleColour"];
 
         // Draw bar spectrum
-        float centerOffset = (float)(ScreenWidth() / 2) - (float)(peakmaxArray.size() * rectWidth / 2);
+        float centerOffset = (float)(ScreenWidth() / 2) - (float)(peakmaxArray.size() * barWidth / 2);
         for (int i = 0; i < peakmaxArray.size(); i++)
         {
-            m_quad.setPosition(centerOffset + i * rectWidth, ScreenHeight());
-            m_quad.setSize(rectWidth, -peakmaxArray[i] * barAmp);
+            m_quad.setPosition(centerOffset + i * barWidth, ScreenHeight());
+            m_quad.setSize(barWidth, -peakmaxArray[i] * barAmp);
             m_quad.setColour({ barColour[0], barColour[1], barColour[2], barColour[3] });
             m_quad.setRotation(0);
             m_quad.Draw();
@@ -159,17 +178,49 @@ private:
 
             float cx = ScreenWidth()  / 2;
             float cy = ScreenHeight() / 2;
-            float initRadius = m_config["visualiser"]["circleInitialRadius"];
+            float initRadius = m_config["visualiser2d"]["circleInitialRadius"];
             float r = initRadius + aprox;
 
             float x = cx + r * cosf(glm::radians(a));
             float y = cy + r * sinf(glm::radians(a));
 
             m_quad.setPosition(x, y);
-            m_quad.setSize(rectWidth, -peakmaxArray[i] * circleAmp);
+            m_quad.setSize(barWidth, -peakmaxArray[i] * circleAmp);
             m_quad.setRotation(a + 90);
             m_quad.setColour({ circleColour[0], circleColour[1], circleColour[2], circleColour[3] });
             m_quad.Draw();
+        }
+    }
+
+    void visualiser3d(std::vector<float> peakmaxArray)
+    {
+        auto cameraPos      = m_config["visualiser3d"]["cameraPos"];
+        auto cameraRot      = m_config["visualiser3d"]["cameraRot"];
+        auto barAmp         = m_config["visualiser3d"]["barAmp"];
+        auto barColour      = m_config["visualiser3d"]["barColour"];
+        auto circleRadius   = m_config["visualiser3d"]["circleRadius"];
+
+        m_camera.setPosition({ cameraPos[0], cameraPos[1], cameraPos[2] });
+        m_camera.setRotation({ cameraRot[0], cameraRot[1], cameraRot[2] });
+
+        // Get angle to rotate for circle points
+        const float angle = 360 / peakmaxArray.size();
+        for (int i = 0; i < peakmaxArray.size(); i++)
+        {
+            // Angle in circle
+            const float a = i * angle;
+
+            float cx = 0;
+            float cy = 0;
+            float r = circleRadius;
+
+            float x = cx + r * cosf(glm::radians(a));
+            float y = cy + r * sinf(glm::radians(a));
+
+            m_cube.setScale({ 1, peakmaxArray[i] * barAmp, 1 });
+            m_cube.setPosition({ x, 0, y });
+            m_cube.setColour({ barColour[0], barColour[1], barColour[2], barColour[3] });
+            m_cube.Draw(&m_camera);
         }
     }
 
@@ -177,14 +228,18 @@ private:
     HSTREAM m_handle;
     int     m_sampleRate;
     int     m_deviceID;
-
-    Quad    m_quad;
-
     float   m_volume;
 
     std::string     m_audioFilePath;
     std::string     m_audioTitle;
     nlohmann::json  m_config;
+
+    // 2d
+    Quad   m_quad;
+
+    // 3d
+    Camera m_camera;
+    Cube   m_cube;
 };
 
 int main(int argc, char* argv[])

@@ -1,5 +1,5 @@
-#ifndef RENDERER_H
-#define RENDERER_H
+#ifndef QUAD_H
+#define QUAD_H
 
 #include <glm/glm.hpp>
 #include <vector>

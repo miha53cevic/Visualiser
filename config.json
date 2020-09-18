@@ -1,8 +1,8 @@
 {
     "display": {
-        "width": 1280,
-        "height": 720,
-        "fullscreen": true
+        "width": 1600,
+        "height": 900,
+        "fullscreen": false
     },
 
     "bass": {
@@ -10,8 +10,12 @@
         "sampleRate": 44100
     },
 
-    "visualiser": {
-        "freq_bin": [20, 60, 250, 500],
+    "data": {
+        "freq_bin": [20, 60, 250, 500]
+    },
+
+    "visualiser2d": {
+        "active": true,
         "rectWidth": 8,
         "barAmp": 1000,
         "circleAmp": 1000,
@@ -19,5 +23,14 @@
         "circleInitialRadius": 100,
         "barColour": [255, 0, 0, 255],
         "circleColour": [0, 0, 255, 255]
+    },
+
+    "visualiser3d": {
+        "active": true,
+        "cameraPos": [-35, 30, 0],
+        "cameraRot": [45, 90, 0],
+        "barAmp": 100,
+        "barColour": [255, 255, 255, 255],
+        "circleRadius": 20
     }
 }

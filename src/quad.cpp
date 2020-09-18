@@ -9,12 +9,15 @@
 #endif
 
 Quad::Quad(glm::vec2 screenSize)
+    : m_position(0, 0)
+    , m_rotation(0)
+    , m_size(1, 1)
+    , m_colour(1, 1, 1, 1)
 {
     prepQuadData();
 
     // Load shader
     m_shader.setAttribute(0, "position");
-    m_shader.setAttribute(1, "textureCoords");
 
     // Get basepath for the assets folder
     char* basePath = SDL_GetBasePath();
@@ -66,6 +69,7 @@ float Quad::getRotation()
 void Quad::setColour(glm::vec4 colour)
 {
     m_colour = colour;
+    m_colour /= 255.0f;
 }
 
 glm::vec4 Quad::getColour()
