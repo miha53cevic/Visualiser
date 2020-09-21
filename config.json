@@ -15,7 +15,7 @@
     },
 
     "visualiser2d": {
-        "active": true,
+        "active": false,
         "rectWidth": 8,
         "barAmp": 1000,
         "circleAmp": 1000,
@@ -30,7 +30,9 @@
         "cameraPos": [-35, 30, 0],
         "cameraRot": [45, 90, 0],
         "barAmp": 100,
-        "barColour": [255, 255, 255, 255],
-        "circleRadius": 20
+        "barHSV": [0, 100, 50],
+        "circleRadius": 20,
+        "startAngle": 0,
+        "endAngle": 360
     }
 }

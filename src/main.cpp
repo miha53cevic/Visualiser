@@ -114,6 +114,41 @@ private:
             printf("Now playing... %s\n", path.c_str());
     }
 
+    glm::vec4 HSVtoRGB(float H, float S, float V) {
+        if (H > 360 || H < 0 || S>100 || S < 0 || V>100 || V < 0) {
+            printf("The given HSV values are not in valid range!\n");
+        }
+        float s = S / 100;
+        float v = V / 100;
+        float C = s * v;
+        float X = C * (1 - abs(fmod(H / 60.0, 2) - 1));
+        float m = v - C;
+        float r, g, b;
+        if (H >= 0 && H < 60) {
+            r = C, g = X, b = 0;
+        }
+        else if (H >= 60 && H < 120) {
+            r = X, g = C, b = 0;
+        }
+        else if (H >= 120 && H < 180) {
+            r = 0, g = C, b = X;
+        }
+        else if (H >= 180 && H < 240) {
+            r = 0, g = X, b = C;
+        }
+        else if (H >= 240 && H < 300) {
+            r = X, g = 0, b = C;
+        }
+        else {
+            r = C, g = 0, b = X;
+        }
+        int R = (r + m) * 255;
+        int G = (g + m) * 255;
+        int B = (b + m) * 255;
+        
+        return { R, G, B, 255 };
+    }
+
     std::vector<float> calculatePeakMaxArray()
     {
         auto freq_bin = m_config["data"]["freq_bin"];
@@ -197,29 +232,33 @@ private:
         auto cameraPos      = m_config["visualiser3d"]["cameraPos"];
         auto cameraRot      = m_config["visualiser3d"]["cameraRot"];
         auto barAmp         = m_config["visualiser3d"]["barAmp"];
-        auto barColour      = m_config["visualiser3d"]["barColour"];
+        auto barHSV         = m_config["visualiser3d"]["barHSV"];
         auto circleRadius   = m_config["visualiser3d"]["circleRadius"];
-
+        
         m_camera.setPosition({ cameraPos[0], cameraPos[1], cameraPos[2] });
         m_camera.setRotation({ cameraRot[0], cameraRot[1], cameraRot[2] });
 
-        // Get angle to rotate for circle points
-        const float angle = 360 / peakmaxArray.size();
+        // Get angle to rotate for the circle arc
+        const float startAngle  = m_config["visualiser3d"]["startAngle"];
+        const float endAngle    = m_config["visualiser3d"]["endAngle"];;
+        const float availableAngleSpace = endAngle - startAngle;
+
+        const float angle = availableAngleSpace / peakmaxArray.size();
         for (int i = 0; i < peakmaxArray.size(); i++)
         {
-            // Angle in circle
-            const float a = i * angle;
+            // Angle in arc
+            const float a = i * angle + startAngle;
 
             float cx = 0;
             float cy = 0;
             float r = circleRadius;
 
             float x = cx + r * cosf(glm::radians(a));
-            float y = cy + r * sinf(glm::radians(a));
+            float z = cy + r * sinf(glm::radians(a));
 
             m_cube.setScale({ 1, peakmaxArray[i] * barAmp, 1 });
-            m_cube.setPosition({ x, 0, y });
-            m_cube.setColour({ barColour[0], barColour[1], barColour[2], barColour[3] });
+            m_cube.setPosition({ x, 0, z });
+            m_cube.setColour(HSVtoRGB(i * ((360 - barHSV[0]) / peakmaxArray.size()) + barHSV[0], barHSV[1], barHSV[2]));
             m_cube.Draw(&m_camera);
         }
     }
