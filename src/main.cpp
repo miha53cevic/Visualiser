@@ -3,12 +3,17 @@
 #include <bass.h>
 #include <vector>
 #include <fstream>
+#include <list>
 
 #include "libs/json.hpp"
 
 #include "quad.h"
 #include "camera.h"
 #include "cube.h"
+
+// C++17
+#include <filesystem>
+namespace fs = std::experimental::filesystem;
 
 class VisualiserGL : public App
 {
@@ -30,20 +35,40 @@ public:
         BASS_Free();
     }
 
-    void setAudioFilePath(std::string path)
+    void singleMode(std::string audioFilePath)
     {
-        m_audioFilePath = path;
+        addSong(audioFilePath);
+    }
 
-        // Get the audio file title withouth the path
-        m_audioTitle = "";
-        for (int i = m_audioFilePath.size() - 1; i >= 0; i--)
+    void playlistMode()
+    {
+        // Recursive search through current folder and then add them to list
+        std::function<void(fs::path)> DisplayDirTree = [&](const fs::path& pathToShow)
         {
-            if (m_audioFilePath[i] == '\\' || m_audioFilePath[i] == '/')
-                break;
-            else m_audioTitle += m_audioFilePath[i];
-        }
-        // Reverse the string so it's in the correct order
-        std::reverse(m_audioTitle.begin(), m_audioTitle.end());
+            if (fs::exists(pathToShow) && fs::is_directory(pathToShow))
+            {
+                // Entry is type directory_entry
+                for (const auto& entry : fs::directory_iterator(pathToShow))
+                {
+                    auto filename = entry.path().filename();
+                    if (fs::is_directory(entry.path()))
+                    {
+                        DisplayDirTree(entry.path());
+                    }
+                    else if (fs::is_regular_file(entry.path()))
+                    {
+                        // only add .mp3 files
+                        if (filename.extension() == ".mp3")
+                            addSong(entry.path().string());
+                    }
+                }
+            }
+        };
+
+        DisplayDirTree(fs::current_path());
+        printf("Current working dir: %s\n", fs::current_path().string().c_str());
+
+        printf("Using playlist mode: Found %d .mp3 songs\n\n", m_songList.size());
     }
 
 private:
@@ -65,6 +90,11 @@ private:
 
             BASS_ChannelSetAttribute(m_handle, BASS_ATTRIB_VOL, m_volume);
         }
+        else if (e.type == SDL_KEYDOWN && e.key.keysym.scancode == SDL_SCANCODE_RIGHT)
+        {
+            if (!m_songList.empty())
+                playNext();
+        }
 
         return true;
     }
@@ -81,14 +111,20 @@ private:
         m_sampleRate = m_config["bass"]["sampleRate"];
 
         BASS_Init(m_deviceID, m_sampleRate, 0, 0, nullptr);
-        PlayAudio(m_audioFilePath, &m_handle);
+        playNext();
         return true;
     }
+
     virtual bool Loop(float elapsed) override
     {
         // Check for song end
         if (BASS_ChannelIsActive(m_handle) == BASS_ACTIVE_STOPPED)
-            return false;
+        {
+            if (!m_songList.empty())
+                playNext();
+            // return false exists the app program
+            else return false;
+        }
 
         // Visualise
         auto peakmaxArray = calculatePeakMaxArray();
@@ -104,14 +140,56 @@ private:
     }
 
 private:
+    void playNext()
+    {
+        if (!m_songList.empty())
+        {
+            PlayAudio(m_songList.front(), &m_handle);
+
+            // Get audio file title (sets the variable m_audioTitle and returns it)
+            getAudioFileName(m_songList.front());
+
+            // Remove audio file from list (queue)
+            m_songList.pop_front();
+        }
+        else
+            printf("SongList is empty!\n");
+    }
+
+    void addSong(std::string songPath)
+    {
+        m_songList.push_back(songPath);
+    }
+
     void PlayAudio(std::string path, HSTREAM* streamHandle)
     {
+        // Stop any previous audio from playing (also it clears the buffer by stopping it)
+        BASS_ChannelStop(*streamHandle);
+        BASS_StreamFree(*streamHandle); // Important! memory leak otherwise
+
         *streamHandle = BASS_StreamCreateFile(false, path.data(), 0, 0, 0);
 
         if (!BASS_ChannelPlay(*streamHandle, false))
             printf("Could not load audio file... %s\n", path.c_str());
         else
             printf("Now playing... %s\n", path.c_str());
+    }
+
+    // Returns audio file name from path and stores it in m_audioTitle as well
+    std::string getAudioFileName(std::string path)
+    {
+        // Get the audio file title withouth the path
+        m_audioTitle = "";
+        for (int i = path.size() - 1; i >= 0; i--)
+        {
+            if (path[i] == '\\' || path[i] == '/')
+                break;
+            else m_audioTitle += path[i];
+        }
+        // Reverse the string so it's in the correct order
+        std::reverse(m_audioTitle.begin(), m_audioTitle.end());
+
+        return m_audioTitle;
     }
 
     glm::vec4 HSVtoRGB(float H, float S, float V) {
@@ -149,6 +227,7 @@ private:
         return { R, G, B, 255 };
     }
 
+private:
     std::vector<float> calculatePeakMaxArray()
     {
         auto freq_bin = m_config["data"]["freq_bin"];
@@ -269,7 +348,6 @@ private:
     int     m_deviceID;
     float   m_volume;
 
-    std::string     m_audioFilePath;
     std::string     m_audioTitle;
     nlohmann::json  m_config;
 
@@ -279,6 +357,8 @@ private:
     // 3d
     Camera m_camera;
     Cube   m_cube;
+
+    std::list<std::string> m_songList;
 };
 
 int main(int argc, char* argv[])
@@ -295,8 +375,12 @@ int main(int argc, char* argv[])
 
     VisualiserGL app("Visualiser", config["display"]["width"], config["display"]["height"], config);
 
+    // Visualise single song given as argument
     if (argc >= 2)
-        app.setAudioFilePath(argv[1]);
+        app.singleMode(argv[1]);
+    // If no arguments are given open the user interface that allows the user to choose multiple songs
+    else
+        app.playlistMode();
 
     app.Run();
     return 0;
