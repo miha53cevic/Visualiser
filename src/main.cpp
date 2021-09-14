@@ -12,8 +12,13 @@
 #include "cube.h"
 
 // C++17
-#include <filesystem>
-namespace fs = std::experimental::filesystem;
+#ifdef _WIN32
+    #include <filesystem>
+    namespace fs = std::experimental::filesystem;
+#elif __linux__
+    #include <filesystem>
+    namespace fs = std::filesystem;
+#endif
 
 class VisualiserGL : public App
 {
@@ -68,7 +73,7 @@ public:
         DisplayDirTree(fs::current_path());
         printf("Current working dir: %s\n", fs::current_path().string().c_str());
 
-        printf("Using playlist mode: Found %d .mp3 songs\n\n", m_songList.size());
+        printf("Using playlist mode: Found %d .mp3 songs\n\n", (int)m_songList.size());
     }
 
 private:
@@ -308,11 +313,11 @@ private:
 
     void visualiser3d(std::vector<float> peakmaxArray)
     {
-        auto cameraPos      = m_config["visualiser3d"]["cameraPos"];
-        auto cameraRot      = m_config["visualiser3d"]["cameraRot"];
-        auto barAmp         = m_config["visualiser3d"]["barAmp"];
-        auto barHSV         = m_config["visualiser3d"]["barHSV"];
-        auto circleRadius   = m_config["visualiser3d"]["circleRadius"];
+        const std::vector<float> cameraPos      = m_config["visualiser3d"]["cameraPos"];
+        const std::vector<float> cameraRot      = m_config["visualiser3d"]["cameraRot"];
+        const float barAmp                      = m_config["visualiser3d"]["barAmp"];
+        const std::vector<int> barHSV           = m_config["visualiser3d"]["barHSV"];
+        const float circleRadius                = m_config["visualiser3d"]["circleRadius"];
         
         m_camera.setPosition({ cameraPos[0], cameraPos[1], cameraPos[2] });
         m_camera.setRotation({ cameraRot[0], cameraRot[1], cameraRot[2] });
